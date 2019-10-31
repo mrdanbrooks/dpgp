@@ -18,6 +18,7 @@
 import argparse
 import getpass
 import sys, tempfile, os
+import time
 import pydoc
 import shlex
 from subprocess import call, Popen, run, PIPE
@@ -43,6 +44,7 @@ class DGPG:
             repeat_passwd = getpass.getpass("Please re-enter this passphrase: ")
             if passwd == repeat_passwd:
                 break
+            print("Passphrases do not match, please try again.")
 
         self.__passwd = passwd
 
@@ -59,6 +61,22 @@ class DGPG:
 #             p = Popen(shlex.split(cmd), stdout=PIPE, stdin=PIPE, stderr=PIPE)
 #             p.communicate(self.__passwd)
             run(shlex.split(cmd), input=self.__passwd, encoding='ascii')
+
+        # Check that changes were successfully encrypted to file
+        print("Checking updated file integrity")
+        written_contents = self.__buffer
+        time.sleep(0.5)
+        success = self.read_gpg_file(filepath)
+        if not success:
+            print("Error reading back file contents during integrity check")
+            print("Contents that should have been written to file are below:")
+            print(written_contents)
+            return
+        if not written_contents == self.__buffer.encode('ascii'):
+            print("File integrity check error:")
+            print("Attempted to write:\n%s\n\nRead back:\n%s\n\n" % (written_contents, self.__buffer))
+            return
+        print("File updated successfully.")
 
     def read_gpg_file(self, filepath):
         """ Attempts to read an input file.
